@@ -153,7 +153,9 @@ function normalizeData(statusLines) {
     }
 
     const relDays = getRelativeDays(now, new Date(key).getTime());
-    relativeDateMap[relDays] = getDayAverage(val);
+    if (relDays < maxDays) {
+      relativeDateMap[relDays] = getDayAverage(val);
+    }
   }
 
   relativeDateMap.upTime = dateNormalized.upTime;
@@ -173,6 +175,7 @@ function getRelativeDays(date1, date2) {
 }
 
 function splitRowsByDate(rows) {
+  const now = Date.now();
   let dateValues = {};
   let sum = 0,
     count = 0;
@@ -185,6 +188,11 @@ function splitRowsByDate(rows) {
     const [dateTimeStr, resultStr] = row.split(",", 2);
     const dateTime = new Date(dateTimeStr.replace(/-/g, "/"));
     const dateStr = dateTime.toDateString();
+    const relDays = getRelativeDays(now, dateTime);
+
+    if (relDays >= maxDays) {
+      continue;
+    }
 
     let resultArray = dateValues[dateStr];
     if (!resultArray) {
