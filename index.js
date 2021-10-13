@@ -59,7 +59,7 @@ function constructStatusSquare(key, date, uptimeVal) {
   });
 
   const show = () => {
-    showTooltip(square, key, date, color);
+    showTooltip(square, key, date, uptimeVal, color);
   };
   square.addEventListener("mouseover", show);
   square.addEventListener("mousedown", show);
@@ -219,13 +219,15 @@ function splitRowsByDate(rows) {
 }
 
 let tooltipTimeout = null;
-function showTooltip(element, key, date, color) {
+function showTooltip(element, key, date, uptime, color) {
   clearTimeout(tooltipTimeout);
   const toolTipDiv = document.getElementById("tooltip");
+  const percentageText = uptime < 1 ? " (" + (uptime * 100).toFixed(2)
+ + "%)" : "";
 
   document.getElementById("tooltipDateTime").innerText = date.toDateString();
   document.getElementById("tooltipDescription").innerText =
-    getStatusDescriptiveText(color);
+    getStatusDescriptiveText(color) + percentageText;
 
   const statusDiv = document.getElementById("tooltipStatus");
   statusDiv.innerText = getStatusText(color);
