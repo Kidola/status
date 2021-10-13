@@ -27,6 +27,7 @@ function constructStatusStream(key, url, uptimeData) {
     url: url,
     color: color,
     status: getStatusText(color),
+    lastDown: getLastDownText(uptimeData.lastDown),
     upTime: uptimeData.upTime,
   });
 
@@ -118,6 +119,10 @@ function getStatusText(color) {
     : "Unknown";
 }
 
+function getLastDownText(lastDown) {
+  return lastDown ? "[last down: " + lastDown + " GMT]" : "";
+}
+
 function getStatusDescriptiveText(color) {
   return color == "nodata"
     ? "No Data Available: Health check was not performed."
@@ -155,6 +160,7 @@ function normalizeData(statusLines) {
     const relDays = getRelativeDays(now, new Date(key).getTime());
     if (relDays < maxDays) {
       relativeDateMap[relDays] = getDayAverage(val);
+      relativeDateMap.lastDown = getLastDown(val);
     }
   }
 
@@ -162,12 +168,24 @@ function normalizeData(statusLines) {
   return relativeDateMap;
 }
 
-function getDayAverage(val) {
+function getDayAverage(valWithHour) {
+  let val = Object.values(valWithHour);
   if (!val || val.length == 0) {
     return null;
   } else {
     return val.reduce((a, v) => a + v) / val.length;
   }
+}
+
+function getLastDown(valWithHour) {
+  let lastDown = null
+  for (var hour in valWithHour) {
+    var val = valWithHour[hour];
+    if (val == 0) {
+      lastDown = hour;
+    }
+  }
+  return lastDown;
 }
 
 function getRelativeDays(date1, date2) {
@@ -188,6 +206,7 @@ function splitRowsByDate(rows) {
     const [dateTimeStr, resultStr] = row.split(",", 2);
     const dateTime = new Date(dateTimeStr.replace(/-/g, "/"));
     const dateStr = dateTime.toDateString();
+    const timeStr = dateTime.toLocaleTimeString();
     const relDays = getRelativeDays(now, dateTime);
 
     if (relDays >= maxDays) {
@@ -210,7 +229,7 @@ function splitRowsByDate(rows) {
     sum += result;
     count++;
 
-    resultArray.push(result);
+    resultArray[timeStr] = result;
   }
 
   const upTime = count ? ((sum / count) * 100).toFixed(2) + "%" : "--%";
