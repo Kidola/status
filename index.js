@@ -27,6 +27,7 @@ function constructStatusStream(key, url, uptimeData) {
     url: url,
     color: color,
     status: getStatusText(color),
+    lastDown: getLastDownText(uptimeData.lastDown),
     upTime: uptimeData.upTime,
   });
 
@@ -59,7 +60,7 @@ function constructStatusSquare(key, date, uptimeVal) {
   });
 
   const show = () => {
-    showTooltip(square, key, date, color);
+    showTooltip(square, key, date, uptimeVal, color);
   };
   square.addEventListener("mouseover", show);
   square.addEventListener("mousedown", show);
@@ -118,6 +119,10 @@ function getStatusText(color) {
     : "Unknown";
 }
 
+function getLastDownText(lastDown) {
+  return lastDown ? "[last down: " + lastDown + " GMT]" : "";
+}
+
 function getStatusDescriptiveText(color) {
   return color == "nodata"
     ? "No Data Available: Health check was not performed."
@@ -153,14 +158,18 @@ function normalizeData(statusLines) {
     }
 
     const relDays = getRelativeDays(now, new Date(key).getTime());
-    relativeDateMap[relDays] = getDayAverage(val);
+    if (relDays < maxDays) {
+      relativeDateMap[relDays] = getDayAverage(val);
+      relativeDateMap.lastDown = getLastDown(val);
+    }
   }
 
   relativeDateMap.upTime = dateNormalized.upTime;
   return relativeDateMap;
 }
 
-function getDayAverage(val) {
+function getDayAverage(valWithHour) {
+  let val = Object.values(valWithHour);
   if (!val || val.length == 0) {
     return null;
   } else {
@@ -168,11 +177,23 @@ function getDayAverage(val) {
   }
 }
 
+function getLastDown(valWithHour) {
+  let lastDown = null
+  for (var hour in valWithHour) {
+    var val = valWithHour[hour];
+    if (val == 0) {
+      lastDown = hour;
+    }
+  }
+  return lastDown;
+}
+
 function getRelativeDays(date1, date2) {
   return Math.floor(Math.abs((date1 - date2) / (24 * 3600 * 1000)));
 }
 
 function splitRowsByDate(rows) {
+  const now = Date.now();
   let dateValues = {};
   let sum = 0,
     count = 0;
@@ -185,6 +206,12 @@ function splitRowsByDate(rows) {
     const [dateTimeStr, resultStr] = row.split(",", 2);
     const dateTime = new Date(Date.parse(dateTimeStr.replace(/-/g, "/") + " GMT"));
     const dateStr = dateTime.toDateString();
+    const timeStr = dateTime.toLocaleTimeString();
+    const relDays = getRelativeDays(now, dateTime);
+
+    if (relDays >= maxDays) {
+      continue;
+    }
 
     let resultArray = dateValues[dateStr];
     if (!resultArray) {
@@ -202,7 +229,7 @@ function splitRowsByDate(rows) {
     sum += result;
     count++;
 
-    resultArray.push(result);
+    resultArray[timeStr] = result;
   }
 
   const upTime = count ? ((sum / count) * 100).toFixed(2) + "%" : "--%";
@@ -211,13 +238,15 @@ function splitRowsByDate(rows) {
 }
 
 let tooltipTimeout = null;
-function showTooltip(element, key, date, color) {
+function showTooltip(element, key, date, uptime, color) {
   clearTimeout(tooltipTimeout);
   const toolTipDiv = document.getElementById("tooltip");
+  const percentageText = uptime < 1 ? " (" + (uptime * 100).toFixed(2)
+ + "%)" : "";
 
   document.getElementById("tooltipDateTime").innerText = date.toDateString();
   document.getElementById("tooltipDescription").innerText =
-    getStatusDescriptiveText(color);
+    getStatusDescriptiveText(color) + percentageText;
 
   const statusDiv = document.getElementById("tooltipStatus");
   statusDiv.innerText = getStatusText(color);
